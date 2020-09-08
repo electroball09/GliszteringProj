@@ -32,11 +32,13 @@ namespace Glisztering
             NAudioWaveOutput output = new NAudioWaveOutput();
             using (var playback = midi.GetPlayback(output))
             {
-                output.midiFile = midi;
                 output.pb = playback;
                 playback.Play();
-                System.Threading.Thread.Sleep(10000);
+                while (playback.IsRunning)
+                    System.Threading.Thread.Sleep(1000);
             }
+
+            return;
         }
 
         static void WinformsInit()
@@ -49,7 +51,6 @@ namespace Glisztering
 
     public class NAudioWaveOutput : IOutputDevice
     {
-        public MidiFile midiFile;
         public Playback pb;
 
         public event EventHandler<MidiEventSentEventArgs> EventSent;
@@ -89,6 +90,7 @@ namespace Glisztering
                 if (waves.ContainsKey(ev.NoteNumber))
                 {
                     waves[ev.NoteNumber].Stop();
+                    waves[ev.NoteNumber].Dispose();
                     waves[ev.NoteNumber] = wo;
                 }
                 else
@@ -104,7 +106,10 @@ namespace Glisztering
                 NoteOffEvent ev = midiEvent as NoteOffEvent;
 
                 if (waves.ContainsKey(ev.NoteNumber))
+                {
                     waves[ev.NoteNumber].Stop();
+                    waves[ev.NoteNumber].Dispose();
+                }
             }
 
             EventSent?.Invoke(this, new MidiEventSentEventArgs(midiEvent));
