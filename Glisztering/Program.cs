@@ -6,8 +6,10 @@ using System.Windows.Forms;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using Melanchall.DryWetMidi.Core;
+using Melanchall.DryWetMidi.Common;
 using Melanchall.DryWetMidi.Devices;
 using Melanchall.DryWetMidi.MusicTheory;
+using Accessibility;
 
 namespace Glisztering
 {
@@ -18,24 +20,37 @@ namespace Glisztering
         {
             WinformsInit();
 
-            OpenFileDialog ofd = new OpenFileDialog()
-            {
-                Filter = "MIDI files (*.mid)|*.mid",
-                Multiselect = false,
-            };
-            DialogResult res = ofd.ShowDialog();
-            if (res != DialogResult.OK)
-                return;
+            //OpenFileDialog ofd = new OpenFileDialog()
+            //{
+            //    Filter = "MIDI files (*.mid)|*.mid",
+            //    Multiselect = false,
+            //};
+            //DialogResult res = ofd.ShowDialog();
+            //if (res != DialogResult.OK)
+            //    return;
 
-            MidiFile midi = MidiFile.Read(ofd.FileName);
+            //MidiFile midi = MidiFile.Read(ofd.FileName);
 
-            NAudioWaveOutput output = new NAudioWaveOutput();
-            using (var playback = midi.GetPlayback(output))
+            //NAudioWaveOutput output = new NAudioWaveOutput();
+            //using (var playback = midi.GetPlayback(output))
+            //{
+            //    output.pb = playback;
+            //    playback.Play();
+            //    while (playback.IsRunning)
+            //        System.Threading.Thread.Sleep(1000);
+            //}
+
+            byte min = 36;
+            byte max = 82;
+
+            RandoNotePlayer rnp = new RandoNotePlayer();
+            Scale chosenScale = new Scale(ScaleIntervals.MixolydianB6M, NoteName.B);
+
+            for (int i = 0; i < 50; i++)
             {
-                output.pb = playback;
-                playback.Play();
-                while (playback.IsRunning)
-                    System.Threading.Thread.Sleep(1000);
+                //rnp.PlayRandomNote(min, max);
+                rnp.PlayNoteInScale(chosenScale);
+                System.Threading.Thread.Sleep(250);
             }
 
             return;
@@ -46,6 +61,70 @@ namespace Glisztering
             Application.SetHighDpiMode(HighDpiMode.SystemAware);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+        }
+    }
+
+    public class RandoNotePlayer
+    {
+        Random r = new Random();
+        WaveOutEvent wo = new WaveOutEvent();
+        int counter = 0;
+
+        Dictionary<int, SignalGenerator> gens = new Dictionary<int, SignalGenerator>();
+
+        private void PlayNote(Note n)
+        {
+            if (wo != null)
+                KillCurrNote();
+
+            double freq = n.CalcFrequency();
+
+            SignalGenerator gen;
+
+            if (gens.ContainsKey(n.NoteNumber))
+                gen = gens[n.NoteNumber];
+            else
+                gen = new SignalGenerator()
+                {
+                    Gain = 0.2,
+                    Frequency = freq,
+                    Type = SignalGeneratorType.Sin
+                };
+
+            wo.Init(gen);
+            wo.Play();
+        }
+
+        private void KillCurrNote()
+        {
+            wo.Stop();
+        }
+
+        public void PlayRandomNote(byte min, byte max)
+        {
+            byte rand = (byte)r.Next(min, max);
+
+            Note n = Note.Get((SevenBitNumber)rand);
+
+            PlayNote(n);
+        }
+
+        public void PlayNoteInScale(Scale scale)
+        {
+            byte rand = (byte)r.Next(0, 8);
+
+            Note n;
+            if (counter % 5 != 0)
+                n = scale.GetAscendingNotes(Note.Get(scale.RootNote, 4)).ElementAt(rand);
+            else
+            {
+                counter = 0;
+                n = Note.Get(scale.RootNote, 4);
+            }
+
+            counter++;
+
+            PlayNote(n);
         }
     }
 
